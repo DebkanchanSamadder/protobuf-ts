@@ -26,6 +26,8 @@ import {FileTable} from "./file-table";
 import {ServiceServerGeneratorGeneric} from "./code-gen/service-server-generator-generic";
 import {ServiceClientGeneratorGrpc} from "./code-gen/service-client-generator-grpc";
 import * as ts from "typescript";
+import {assert} from "@protobuf-ts/runtime";
+import {WellKnownTypes} from "./message-type-extensions/well-known-types";
 
 
 export class ProtobuftsPlugin extends PluginBase {
@@ -56,8 +58,9 @@ export class ProtobuftsPlugin extends PluginBase {
         // misc
         generate_dependencies: {
             description: "By default, only the PROTO_FILES passed as input to protoc are generated, \n" +
-                         "not the files they import. Set this option to generate code for dependencies \n" +
-                         "too.",
+                         "not the files they import (with the exception of well-known types, which are \n" +
+                         "always generated when imported). \n"+
+                         "Set this option to generate code for dependencies too.",
         },
         force_exclude_all_options: {
             description: "By default, custom options are included in the metadata and can be blacklisted \n" +
@@ -69,15 +72,30 @@ export class ProtobuftsPlugin extends PluginBase {
                          "name, the prefix is dropped from the value names. Set this option to disable \n" +
                          "this behavior.",
         },
+        use_proto_field_name: {
+            description: "By default interface fields use lowerCamelCase names by transforming proto field\n" +
+                         "names to follow common style convention for TypeScript. Set this option to preserve\n" +
+                         "original proto field names in generated interfaces.",
+        },
         ts_nocheck: {
             description: "Generate a @ts-nocheck annotation at the top of each file. This will become the \n" +
-                         "default behaviour in the next major release.",
+                "default behaviour in the next major release.",
             excludes: ['disable_ts_nocheck'],
         },
         disable_ts_nocheck: {
             description: "Do not generate a @ts-nocheck annotation at the top of each file. Since this is \n" +
-                         "the default behaviour, this option has no effect.",
+                "the default behaviour, this option has no effect.",
             excludes: ['ts_nocheck'],
+        },
+        eslint_disable: {
+            description: "Generate a eslint-disable comment at the top of each file. This will become the \n" +
+                "default behaviour in the next major release.",
+            excludes: ['no_eslint_disable'],
+        },
+        no_eslint_disable: {
+            description: "Do not generate a eslint-disable comment at the top of each file. Since this is \n" +
+                "the default behaviour, this option has no effect.",
+            excludes: ['eslint_disable'],
         },
         add_pb_suffix: {
             description: "Adds the suffix `_pb` to the names of all generated files. This will become the \n" +
@@ -331,9 +349,22 @@ export class ProtobuftsPlugin extends PluginBase {
 
 
         // plugins should only return files requested to generate
-        // unless our option "generate_dependencies" is set
+        // unless our option "generate_dependencies" is set.
+        // We always return well-known types, because we do not
+        // maintain them in a package - they are always generated
+        // on demand.
         if (!options.generateDependencies) {
-            tsFiles = tsFiles.filter(file => request.fileToGenerate.includes(file.fileDescriptor.name!));
+            tsFiles = tsFiles.filter(file => {
+                const protoFilename = file.fileDescriptor.name;
+                assert(protoFilename);
+                if (request.fileToGenerate.includes(protoFilename)) {
+                    return true;
+                }
+                if (WellKnownTypes.protoFilenames.includes(protoFilename)) {
+                    return true;
+                }
+                return false;
+            });
         }
 
         // if a proto file is imported to use custom options, or if a proto file declares custom options,

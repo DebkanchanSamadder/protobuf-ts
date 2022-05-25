@@ -135,8 +135,9 @@ Available plugin options:
 
 - "generate_dependencies"  
   By default, only the PROTO_FILES passed as input to protoc are generated,
-  not the files they import. Set this option to generate code for dependencies
-  too.
+  not the files they import (with the exception of well-known types which are 
+  always generated when imported).
+  Set this option to generate code for dependencies too.
 
 - "force_exclude_all_options"  
   By default, custom options are included in the metadata and can be blacklisted
@@ -148,12 +149,25 @@ Available plugin options:
   name, the prefix is dropped from the value names. Set this option to disable
   this behavior.
 
+- "use_proto_field_name"
+  By default interface fields use lowerCamelCase names by transforming proto field
+  names to follow common style convention for TypeScript. Set this option to preserve
+  original proto field names in generated interfaces.
+
 - "ts_nocheck"  
   Generate a @ts-nocheck annotation at the top of each file. This will become the
   default behaviour in the next major release.
 
 - "disable_ts_nocheck"  
   Do not generate a @ts-nocheck annotation at the top of each file. Since this is
+  the default behaviour, this option has no effect.
+
+- "eslint_disable"
+  Generate a eslint-disable comment at the top of each file. This will become the
+  default behaviour in the next major release.
+
+- "no_eslint_disable"
+  Do not generate a eslint-disable comment at the top of each file. Since this is
   the default behaviour, this option has no effect.
 
 - "add_pb_suffix"  
@@ -638,13 +652,14 @@ interface OneofExample {
 }
 
 let message: OneofExample;
-if (message.oneofKind === "value") {
- message.value // the union has been narrowed down
+if (message.result.oneofKind === "value") {
+ message.result.value // the union has been narrowed down
 }
 ```
 
-> **Note:** you have to turn on the `strictNullChecks` option in your 
-> `tsconfig.json` for this feature
+> **Note:** This feature requires the TypeScript compiler option `strictNullChecks` 
+> to be true. The option is enabled by default if you set the option `strict` to 
+> true, which is recommended. See the [documentation](https://www.typescriptlang.org/tsconfig#strictNullChecks) for details.
 
 
 ## BigInt support
